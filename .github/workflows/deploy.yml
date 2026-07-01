@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 env:
-  DOCKER_IMAGE: ashwanidevopss/k8s-cicd-demo
+  DOCKER_IMAGE: ashwani786/k8s-cicd-demo
   K8S_NAMESPACE: production
 
 jobs:

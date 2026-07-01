@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: k8s-cicd-demo
-        image: ashwanidevopss/k8s-cicd-demo:latest
+        image: ashwani786/k8s-cicd-demo:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
