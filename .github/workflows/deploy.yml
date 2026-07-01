@@ -97,4 +97,3 @@ jobs:
         kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=k8s-cicd-demo
         kubectl get svc k8s-cicd-demo -n ${{ env.K8S_NAMESPACE }}
 
-# Made with Bob
