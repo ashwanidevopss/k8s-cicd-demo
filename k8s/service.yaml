@@ -15,5 +15,3 @@ spec:
     nodePort: 30100
     protocol: TCP
     name: http
-
-# Made with Bob
