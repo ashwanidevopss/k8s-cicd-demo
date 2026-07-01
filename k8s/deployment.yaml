@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-cicd-demo
+  namespace: production
+  labels:
+    app: k8s-cicd-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: k8s-cicd-demo
+  template:
+    metadata:
+      labels:
+        app: k8s-cicd-demo
+    spec:
+      containers:
+      - name: k8s-cicd-demo
+        image: ashwanidevopss/k8s-cicd-demo:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: APP_VERSION
+          value: "1.0.0"
+        - name: NODE_ENV
+          value: "production"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+# Made with Bob
