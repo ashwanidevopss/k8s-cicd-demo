@@ -62,5 +62,3 @@ describe('API Endpoints', () => {
     });
   });
 });
-
-// Made with Bob
