@@ -42,5 +42,3 @@ process.on('SIGTERM', () => {
 });
 
 module.exports = server;
-
-// Made with Bob
