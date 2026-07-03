@@ -6,7 +6,7 @@ metadata:
   labels:
     app: k8s-cicd-demo
 spec:
-  replicas: 3
+  replicas: 5
   selector:
     matchLabels:
       app: k8s-cicd-demo
@@ -24,7 +24,7 @@ spec:
           name: http
         env:
         - name: APP_VERSION
-          value: "1.0.0"
+          value: "1.0.2"
         - name: NODE_ENV
           value: "production"
         resources:

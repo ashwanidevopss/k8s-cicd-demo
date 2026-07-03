@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => {
   res.json({
     message: 'Hello from Kubernetes CI/CD Pipeline! - Praveen',
-    version: process.env.APP_VERSION || '1.0.1',
+    version: process.env.APP_VERSION || '1.0.2',
     environment: process.env.NODE_ENV || 'production',
     timestamp: new Date().toISOString(),
     hostname: require('os').hostname()
@@ -30,7 +30,7 @@ app.get('/ready', (req, res) => {
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
-  console.log(`Version: ${process.env.APP_VERSION || '1.0.1'}`);
+  console.log(`Version: ${process.env.APP_VERSION || '1.0.2'}`);
 });
 
 // Graceful shutdown
