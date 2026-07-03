@@ -12,7 +12,7 @@ describe('API Endpoints', () => {
       
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('message');
-      expect(response.body.message).toBe('Hello from Kubernetes CI/CD Pipeline!');
+      expect(response.body.message).toBe('Hello from Kubernetes CI/CD Pipeline! - Praveen');
       expect(response.body).toHaveProperty('version');
       expect(response.body).toHaveProperty('timestamp');
       expect(response.body).toHaveProperty('hostname');

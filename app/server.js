@@ -4,8 +4,8 @@ const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
   res.json({
-    message: 'Hello from Kubernetes CI/CD Pipeline!',
-    version: process.env.APP_VERSION || '1.0.0',
+    message: 'Hello from Kubernetes CI/CD Pipeline! - Praveen',
+    version: process.env.APP_VERSION || '1.0.1',
     environment: process.env.NODE_ENV || 'production',
     timestamp: new Date().toISOString(),
     hostname: require('os').hostname()
