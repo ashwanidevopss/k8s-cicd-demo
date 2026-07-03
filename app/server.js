@@ -30,7 +30,7 @@ app.get('/ready', (req, res) => {
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
-  console.log(`Version: ${process.env.APP_VERSION || '1.0.0'}`);
+  console.log(`Version: ${process.env.APP_VERSION || '1.0.1'}`);
 });
 
 // Graceful shutdown
