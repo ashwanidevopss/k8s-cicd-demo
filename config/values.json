@@ -1,0 +1,33 @@
+{
+  "project": {
+    "name": "k8s-cicd-demo",
+    "description": "Kubernetes CI/CD Demo with Monitoring"
+  },
+  "docker": {
+    "username": "ashwani786",
+    "image_name": "k8s-cicd-demo",
+    "platforms": "linux/amd64,linux/arm64"
+  },
+  "kubernetes": {
+    "namespace": "production",
+    "monitoring_namespace": "monitoring",
+    "replicas": 5
+  },
+  "email": {
+    "notification_email": "ashwanidevops@gmail.com",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "from_name": "DevOps CI/CD"
+  },
+  "monitoring": {
+    "prometheus_port": 30090,
+    "grafana_port": 30030,
+    "grafana_default_user": "admin",
+    "grafana_default_password": "admin"
+  },
+  "application": {
+    "port": 3000,
+    "nodeport": 30100,
+    "health_check_path": "/health"
+  }
+}

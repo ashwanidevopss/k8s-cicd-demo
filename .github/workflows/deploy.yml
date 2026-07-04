@@ -8,13 +8,39 @@ on:
     branches:
       - main
 
-env:
-  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/k8s-cicd-demo
-  K8S_NAMESPACE: production
-  MONITORING_NAMESPACE: monitoring
-
 jobs:
+  load-config:
+    runs-on: ubuntu-latest
+    outputs:
+      docker_username: ${{ steps.config.outputs.docker_username }}
+      docker_image: ${{ steps.config.outputs.docker_image }}
+      platforms: ${{ steps.config.outputs.platforms }}
+      k8s_namespace: ${{ steps.config.outputs.k8s_namespace }}
+      monitoring_namespace: ${{ steps.config.outputs.monitoring_namespace }}
+      notification_email: ${{ steps.config.outputs.notification_email }}
+      smtp_server: ${{ steps.config.outputs.smtp_server }}
+      smtp_port: ${{ steps.config.outputs.smtp_port }}
+      from_name: ${{ steps.config.outputs.from_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Load configuration from values.json
+        id: config
+        run: |
+          CONFIG_FILE="config/values.json"
+          echo "docker_username=$(jq -r '.docker.username' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "docker_image=$(jq -r '.docker.username' $CONFIG_FILE)/$(jq -r '.docker.image_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "platforms=$(jq -r '.docker.platforms' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "k8s_namespace=$(jq -r '.kubernetes.namespace' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "monitoring_namespace=$(jq -r '.kubernetes.monitoring_namespace' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "notification_email=$(jq -r '.email.notification_email' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "smtp_server=$(jq -r '.email.smtp_server' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "smtp_port=$(jq -r '.email.smtp_port' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+          echo "from_name=$(jq -r '.email.from_name' $CONFIG_FILE)" >> $GITHUB_OUTPUT
+
   build-and-test:
+    needs: load-config
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -39,37 +65,37 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: ${{ needs.load-config.outputs.docker_username }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./app
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ needs.load-config.outputs.platforms }}
           push: true
           tags: |
-            ${{ env.DOCKER_IMAGE }}:latest
-            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+            ${{ needs.load-config.outputs.docker_image }}:latest
+            ${{ needs.load-config.outputs.docker_image }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ needs.load-config.outputs.docker_image }}:buildcache
+          cache-to: type=registry,ref=${{ needs.load-config.outputs.docker_image }}:buildcache,mode=max
 
   request-deployment-approval:
-    needs: build-and-test
+    needs: [load-config, build-and-test]
     runs-on: Self-Hosted
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Send approval request email
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp.gmail.com
-          server_port: 587
+          server_address: ${{ needs.load-config.outputs.smtp_server }}
+          server_port: ${{ needs.load-config.outputs.smtp_port }}
           secure: true
           username: ${{ secrets.EMAIL }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "🔔 Deployment Approval Required - ${{ github.repository }}"
-          to: ${{ secrets.EMAIL }}
-          from: DevOps CI/CD <${{ secrets.EMAIL }}>
+          to: ${{ needs.load-config.outputs.notification_email }}
+          from: ${{ needs.load-config.outputs.from_name }} <${{ secrets.EMAIL }}>
           html_body: |
             <h2>🔔 Deployment Approval Required</h2>
             <p><strong>Repository:</strong> ${{ github.repository }}</p>
@@ -91,7 +117,7 @@ jobs:
             <p><small>This is an automated approval request from the CI/CD pipeline.</small></p>
 
   deploy-monitoring:
-    needs: request-deployment-approval
+    needs: [load-config, request-deployment-approval]
     runs-on: Self-Hosted
     if: github.ref == 'refs/heads/main'
     environment:
@@ -115,7 +141,7 @@ jobs:
       - name: Check if monitoring namespace exists
         id: check_monitoring
         run: |
-          if kubectl get namespace ${{ env.MONITORING_NAMESPACE }} &> /dev/null; then
+          if kubectl get namespace ${{ needs.load-config.outputs.monitoring_namespace }} &> /dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -133,23 +159,23 @@ jobs:
           kubectl apply -f monitoring/prometheus-grafana-setup.yaml --validate=false
           
           echo "⏳ Waiting for Prometheus to be ready..."
-          kubectl wait --for=condition=ready pod -l app=prometheus -n ${{ env.MONITORING_NAMESPACE }} --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=prometheus -n ${{ needs.load-config.outputs.monitoring_namespace }} --timeout=300s || true
           
           echo "⏳ Waiting for Grafana to be ready..."
-          kubectl wait --for=condition=ready pod -l app=grafana -n ${{ env.MONITORING_NAMESPACE }} --timeout=300s || true
+          kubectl wait --for=condition=ready pod -l app=grafana -n ${{ needs.load-config.outputs.monitoring_namespace }} --timeout=300s || true
 
       - name: Verify monitoring deployment
         run: |
           echo "✅ Monitoring Stack Status:"
-          kubectl get pods -n ${{ env.MONITORING_NAMESPACE }}
-          kubectl get svc -n ${{ env.MONITORING_NAMESPACE }}
+          kubectl get pods -n ${{ needs.load-config.outputs.monitoring_namespace }}
+          kubectl get svc -n ${{ needs.load-config.outputs.monitoring_namespace }}
           
           echo ""
           echo "📊 Prometheus URL: http://$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):30090"
           echo "📈 Grafana URL: http://$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}'):30030"
 
   deploy-application:
-    needs: deploy-monitoring
+    needs: [load-config, deploy-monitoring]
     runs-on: Self-Hosted
     if: github.ref == 'refs/heads/main'
     environment:
@@ -173,7 +199,7 @@ jobs:
       - name: Check if deployment exists
         id: check_deployment
         run: |
-          if kubectl get deployment k8s-cicd-demo -n ${{ env.K8S_NAMESPACE }} &> /dev/null; then
+          if kubectl get deployment k8s-cicd-demo -n ${{ needs.load-config.outputs.k8s_namespace }} &> /dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -184,38 +210,38 @@ jobs:
           if [ "${{ steps.check_deployment.outputs.exists }}" == "true" ]; then
             echo "🚀 Updating existing deployment..."
             kubectl set image deployment/k8s-cicd-demo \
-              k8s-cicd-demo=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
-              -n ${{ env.K8S_NAMESPACE }}
+              k8s-cicd-demo=${{ needs.load-config.outputs.docker_image }}:${{ github.sha }} \
+              -n ${{ needs.load-config.outputs.k8s_namespace }}
           else
             echo "🚀 Creating new deployment..."
             kubectl apply -f k8s/namespace.yaml
             kubectl apply -f k8s/deployment.yaml
             kubectl apply -f k8s/service.yaml
             kubectl set image deployment/k8s-cicd-demo \
-              k8s-cicd-demo=${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
-              -n ${{ env.K8S_NAMESPACE }}
+              k8s-cicd-demo=${{ needs.load-config.outputs.docker_image }}:${{ github.sha }} \
+              -n ${{ needs.load-config.outputs.k8s_namespace }}
           fi
 
       - name: Wait for rollout
         run: |
           echo "⏳ Waiting for deployment to complete..."
           kubectl rollout status deployment/k8s-cicd-demo \
-            -n ${{ env.K8S_NAMESPACE }} \
+            -n ${{ needs.load-config.outputs.k8s_namespace }} \
             --timeout=5m
 
       - name: Verify deployment
         run: |
           echo "✅ Application Status:"
-          kubectl get pods -n ${{ env.K8S_NAMESPACE }} -l app=k8s-cicd-demo
-          kubectl get svc -n ${{ env.K8S_NAMESPACE }} k8s-cicd-demo
+          kubectl get pods -n ${{ needs.load-config.outputs.k8s_namespace }} -l app=k8s-cicd-demo
+          kubectl get svc -n ${{ needs.load-config.outputs.k8s_namespace }} k8s-cicd-demo
 
       - name: Run smoke tests
         run: |
           echo "🧪 Running smoke tests..."
-          SERVICE_IP=$(kubectl get svc k8s-cicd-demo -n ${{ env.K8S_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          SERVICE_IP=$(kubectl get svc k8s-cicd-demo -n ${{ needs.load-config.outputs.k8s_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           if [ -z "$SERVICE_IP" ]; then
             SERVICE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}')
-            SERVICE_PORT=$(kubectl get svc k8s-cicd-demo -n ${{ env.K8S_NAMESPACE }} -o jsonpath='{.spec.ports[0].nodePort}')
+            SERVICE_PORT=$(kubectl get svc k8s-cicd-demo -n ${{ needs.load-config.outputs.k8s_namespace }} -o jsonpath='{.spec.ports[0].nodePort}')
           else
             SERVICE_PORT=80
           fi
@@ -292,21 +318,21 @@ jobs:
             <p><a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">View Commit</a></p>
 
   request-rollback-approval:
-    needs: deploy-application
+    needs: [load-config, deploy-application]
     runs-on: Self-Hosted
     if: failure() && github.ref == 'refs/heads/main'
     steps:
       - name: Send rollback approval request email
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp.gmail.com
-          server_port: 587
+          server_address: ${{ needs.load-config.outputs.smtp_server }}
+          server_port: ${{ needs.load-config.outputs.smtp_port }}
           secure: true
           username: ${{ secrets.EMAIL }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "⚠️ Rollback Approval Required - ${{ github.repository }}"
-          to: ${{ secrets.EMAIL }}
-          from: DevOps CI/CD <${{ secrets.EMAIL }}>
+          to: ${{ needs.load-config.outputs.notification_email }}
+          from: ${{ needs.load-config.outputs.from_name }} <${{ secrets.EMAIL }}>
           html_body: |
             <h2>⚠️ Rollback Approval Required</h2>
             <p><strong>Repository:</strong> ${{ github.repository }}</p>
@@ -323,7 +349,7 @@ jobs:
             <p><small>This is an automated rollback approval request from the CI/CD pipeline.</small></p>
 
   rollback:
-    needs: request-rollback-approval
+    needs: [load-config, request-rollback-approval]
     runs-on: Self-Hosted
     if: failure() && github.ref == 'refs/heads/main'
     environment:
@@ -342,8 +368,8 @@ jobs:
       - name: Rollback deployment
         run: |
           echo "🔄 Rolling back deployment..."
-          kubectl rollout undo deployment/k8s-cicd-demo -n ${{ env.K8S_NAMESPACE }}
-          kubectl rollout status deployment/k8s-cicd-demo -n ${{ env.K8S_NAMESPACE }} --timeout=5m
+          kubectl rollout undo deployment/k8s-cicd-demo -n ${{ needs.load-config.outputs.k8s_namespace }}
+          kubectl rollout status deployment/k8s-cicd-demo -n ${{ needs.load-config.outputs.k8s_namespace }} --timeout=5m
           echo "✅ Rollback completed!"
 
       - name: Send rollback email notification
