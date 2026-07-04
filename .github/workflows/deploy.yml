@@ -85,35 +85,22 @@ jobs:
     runs-on: Self-Hosted
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Send approval request email
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: ${{ needs.load-config.outputs.smtp_server }}
-          server_port: ${{ needs.load-config.outputs.smtp_port }}
-          username: ${{ secrets.EMAIL }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🔔 Deployment Approval Required - ${{ github.repository }}"
-          to: ${{ needs.load-config.outputs.notification_email }}
-          from: ${{ needs.load-config.outputs.from_name }} <${{ secrets.EMAIL }}>
-          html_body: |
-            <h2>🔔 Deployment Approval Required</h2>
-            <p><strong>Repository:</strong> ${{ github.repository }}</p>
-            <p><strong>Branch:</strong> ${{ github.ref }}</p>
-            <p><strong>Commit:</strong> ${{ github.sha }}</p>
-            <p><strong>Author:</strong> ${{ github.actor }}</p>
-            <p><strong>Commit Message:</strong> ${{ github.event.head_commit.message }}</p>
-            <hr>
-            <h3>📦 Ready to Deploy:</h3>
-            <ul>
-              <li>✅ Tests Passed</li>
-              <li>✅ Docker Image Built</li>
-              <li>✅ Image Pushed to Docker Hub</li>
-            </ul>
-            <h3>🎯 Action Required:</h3>
-            <p><strong>Please review and approve the deployment:</strong></p>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Approve Deployment</a></p>
-            <hr>
-            <p><small>This is an automated approval request from the CI/CD pipeline.</small></p>
+      - name: Create approval notification
+        run: |
+          echo "🔔 Deployment Approval Required"
+          echo "================================"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo "Notification Email: ${{ needs.load-config.outputs.notification_email }}"
+          echo ""
+          echo "✅ Tests Passed"
+          echo "✅ Docker Image Built"
+          echo "✅ Image Pushed to Docker Hub"
+          echo ""
+          echo "🎯 Approval Required: Go to GitHub Actions to approve"
+          echo "URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   deploy-monitoring:
     needs: [load-config, request-deployment-approval]
@@ -248,101 +235,56 @@ jobs:
           curl -f http://$SERVICE_IP:$SERVICE_PORT/health || exit 1
           echo "✅ Smoke tests passed!"
 
-      - name: Send success email notification
-        if: success()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ Capstone Deployment Successful - ${{ github.repository }}"
-          to: ${{ secrets.EMAIL }}
-          from: DevOps CI/CD <${{ secrets.EMAIL }}>
-          html_body: |
-            <h2>🚀 Capstone Project Deployment Successful!</h2>
-            <p><strong>Repository:</strong> ${{ github.repository }}</p>
-            <p><strong>Branch:</strong> ${{ github.ref }}</p>
-            <p><strong>Commit:</strong> ${{ github.sha }}</p>
-            <p><strong>Author:</strong> ${{ github.actor }}</p>
-            <p><strong>Commit Message:</strong> ${{ github.event.head_commit.message }}</p>
-            <hr>
-            <h3>📦 Deployed Components:</h3>
-            <ul>
-              <li>✅ Application: k8s-cicd-demo (namespace: production)</li>
-              <li>✅ Prometheus (namespace: monitoring)</li>
-              <li>✅ Grafana (namespace: monitoring)</li>
-            </ul>
-            <h3>🔗 Access URLs:</h3>
-            <ul>
-              <li><strong>Application:</strong> http://NODE_IP:30100</li>
-              <li><strong>Prometheus:</strong> http://NODE_IP:30090</li>
-              <li><strong>Grafana:</strong> http://NODE_IP:30030 (admin/admin)</li>
-            </ul>
-            <h3>📊 Deployment Status:</h3>
-            <ul>
-              <li>Tests: Passed ✅</li>
-              <li>Docker Build: Success ✅</li>
-              <li>Monitoring Stack: Deployed ✅</li>
-              <li>Application: Deployed ✅</li>
-              <li>Smoke Tests: Passed ✅</li>
-            </ul>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Deployment Logs</a></p>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">View Commit</a></p>
 
-      - name: Send failure email notification
+
+      - name: Deployment success notification
+        if: success()
+        run: |
+          echo "✅ DEPLOYMENT SUCCESSFUL"
+          echo "======================="
+          echo "Repository: ${{ github.repository }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo "Notification Email: ${{ needs.load-config.outputs.notification_email }}"
+          echo ""
+          echo "📦 Deployed Components:"
+          echo "  - Application (namespace: production)"
+          echo "  - Prometheus (namespace: monitoring)"
+          echo "  - Grafana (namespace: monitoring)"
+          echo ""
+          echo "🔗 Access URLs:"
+          echo "  - Application: http://NODE_IP:30100"
+          echo "  - Prometheus: http://NODE_IP:30090"
+          echo "  - Grafana: http://NODE_IP:30030"
+
+      - name: Deployment failure notification
         if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "❌ Capstone Deployment Failed - ${{ github.repository }}"
-          to: ${{ secrets.EMAIL }}
-          from: DevOps CI/CD <${{ secrets.EMAIL }}>
-          html_body: |
-            <h2>⚠️ Capstone Deployment Failed!</h2>
-            <p><strong>Repository:</strong> ${{ github.repository }}</p>
-            <p><strong>Branch:</strong> ${{ github.ref }}</p>
-            <p><strong>Commit:</strong> ${{ github.sha }}</p>
-            <p><strong>Author:</strong> ${{ github.actor }}</p>
-            <p><strong>Commit Message:</strong> ${{ github.event.head_commit.message }}</p>
-            <hr>
-            <p><strong>Status:</strong> FAILED ❌</p>
-            <p>Please check the logs and take immediate action.</p>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Failure Logs</a></p>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">View Commit</a></p>
+        run: |
+          echo "❌ DEPLOYMENT FAILED"
+          echo "==================="
+          echo "Repository: ${{ github.repository }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo "Notification Email: ${{ needs.load-config.outputs.notification_email }}"
+          echo ""
+          echo "Please check the logs for details"
 
   request-rollback-approval:
     needs: [load-config, deploy-application]
     runs-on: Self-Hosted
     if: failure() && github.ref == 'refs/heads/main'
     steps:
-      - name: Send rollback approval request email
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: ${{ needs.load-config.outputs.smtp_server }}
-          server_port: ${{ needs.load-config.outputs.smtp_port }}
-          username: ${{ secrets.EMAIL }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "⚠️ Rollback Approval Required - ${{ github.repository }}"
-          to: ${{ needs.load-config.outputs.notification_email }}
-          from: ${{ needs.load-config.outputs.from_name }} <${{ secrets.EMAIL }}>
-          html_body: |
-            <h2>⚠️ Rollback Approval Required</h2>
-            <p><strong>Repository:</strong> ${{ github.repository }}</p>
-            <p><strong>Branch:</strong> ${{ github.ref }}</p>
-            <p><strong>Failed Commit:</strong> ${{ github.sha }}</p>
-            <p><strong>Author:</strong> ${{ github.actor }}</p>
-            <hr>
-            <h3>❌ Deployment Failed</h3>
-            <p>The deployment validation failed. The system is ready to rollback to the previous stable version.</p>
-            <h3>🎯 Action Required:</h3>
-            <p><strong>Please review and approve the rollback:</strong></p>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Approve Rollback</a></p>
-            <hr>
-            <p><small>This is an automated rollback approval request from the CI/CD pipeline.</small></p>
+      - name: Rollback approval notification
+        run: |
+          echo "⚠️ Rollback Approval Required"
+          echo "============================="
+          echo "Repository: ${{ github.repository }}"
+          echo "Failed Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          echo "Notification Email: ${{ needs.load-config.outputs.notification_email }}"
+          echo ""
+          echo "Deployment failed - rollback approval required"
+          echo "Go to GitHub Actions to approve rollback"
 
   rollback:
     needs: [load-config, request-rollback-approval]
@@ -368,26 +310,15 @@ jobs:
           kubectl rollout status deployment/k8s-cicd-demo -n ${{ needs.load-config.outputs.k8s_namespace }} --timeout=5m
           echo "✅ Rollback completed!"
 
-      - name: Send rollback email notification
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "🔄 Automatic Rollback Executed - ${{ github.repository }}"
-          to: ${{ secrets.EMAIL }}
-          from: DevOps CI/CD <${{ secrets.EMAIL }}>
-          html_body: |
-            <h2>🔄 Automatic Rollback Executed</h2>
-            <p><strong>Repository:</strong> ${{ github.repository }}</p>
-            <p><strong>Branch:</strong> ${{ github.ref }}</p>
-            <p><strong>Failed Commit:</strong> ${{ github.sha }}</p>
-            <p><strong>Author:</strong> ${{ github.actor }}</p>
-            <hr>
-            <p><strong>Reason:</strong> Deployment failed validation</p>
-            <p><strong>Action Taken:</strong> Rolled back to previous stable version</p>
-            <p>The application has been restored to its previous working state.</p>
-            <p>Monitoring stack (Prometheus & Grafana) remains operational.</p>
-            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Rollback Details</a></p>
+      - name: Rollback completion notification
+        run: |
+          echo "🔄 ROLLBACK COMPLETED"
+          echo "===================="
+          echo "Repository: ${{ github.repository }}"
+          echo "Failed Commit: ${{ github.sha }}"
+          echo "Notification Email: ${{ needs.load-config.outputs.notification_email }}"
+          echo ""
+          echo "Application rolled back to previous stable version"
+          echo "Monitoring stack remains operational"
+
 
