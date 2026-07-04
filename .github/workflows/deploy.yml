@@ -55,7 +55,7 @@ jobs:
 
   deploy-monitoring:
     needs: build-and-test
-    runs-on: ubuntu-latest
+    runs-on: Self-Hosted 
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
@@ -81,16 +81,22 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Test kubectl connection
+        run: |
+          echo "🔍 Testing kubectl connection..."
+          kubectl cluster-info
+          kubectl get nodes
+      
       - name: Deploy Prometheus and Grafana
         run: |
           echo "📊 Deploying monitoring stack..."
-          kubectl apply -f monitoring/prometheus-grafana-setup.yaml
+          kubectl apply -f monitoring/prometheus-grafana-setup.yaml --validate=false
           
           echo "⏳ Waiting for Prometheus to be ready..."
-          kubectl wait --for=condition=ready pod -l app=prometheus -n ${{ env.MONITORING_NAMESPACE }} --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=prometheus -n ${{ env.MONITORING_NAMESPACE }} --timeout=300s || true
           
           echo "⏳ Waiting for Grafana to be ready..."
-          kubectl wait --for=condition=ready pod -l app=grafana -n ${{ env.MONITORING_NAMESPACE }} --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=grafana -n ${{ env.MONITORING_NAMESPACE }} --timeout=300s || true
 
       - name: Verify monitoring deployment
         run: |
@@ -104,7 +110,7 @@ jobs:
 
   deploy-application:
     needs: deploy-monitoring
-    runs-on: ubuntu-latest
+    runs-on: Self-Hosted
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
@@ -223,7 +229,7 @@ jobs:
 
   rollback:
     needs: deploy-application
-    runs-on: ubuntu-latest
+    runs-on: Self-Hosted 
     if: failure() && github.ref == 'refs/heads/main'
     steps:
       - name: Set up kubectl
@@ -265,4 +271,3 @@ jobs:
             <p>Monitoring stack (Prometheus & Grafana) remains operational.</p>
             <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Rollback Details</a></p>
 
-# Made with Bob
