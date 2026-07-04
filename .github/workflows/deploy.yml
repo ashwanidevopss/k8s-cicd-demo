@@ -54,10 +54,49 @@ jobs:
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
 
-  deploy-monitoring:
+  request-deployment-approval:
     needs: build-and-test
-    runs-on: Self-Hosted 
+    runs-on: Self-Hosted
     if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Send approval request email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          secure: true
+          username: ${{ secrets.EMAIL }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🔔 Deployment Approval Required - ${{ github.repository }}"
+          to: ${{ secrets.EMAIL }}
+          from: DevOps CI/CD <${{ secrets.EMAIL }}>
+          html_body: |
+            <h2>🔔 Deployment Approval Required</h2>
+            <p><strong>Repository:</strong> ${{ github.repository }}</p>
+            <p><strong>Branch:</strong> ${{ github.ref }}</p>
+            <p><strong>Commit:</strong> ${{ github.sha }}</p>
+            <p><strong>Author:</strong> ${{ github.actor }}</p>
+            <p><strong>Commit Message:</strong> ${{ github.event.head_commit.message }}</p>
+            <hr>
+            <h3>📦 Ready to Deploy:</h3>
+            <ul>
+              <li>✅ Tests Passed</li>
+              <li>✅ Docker Image Built</li>
+              <li>✅ Image Pushed to Docker Hub</li>
+            </ul>
+            <h3>🎯 Action Required:</h3>
+            <p><strong>Please review and approve the deployment:</strong></p>
+            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Approve Deployment</a></p>
+            <hr>
+            <p><small>This is an automated approval request from the CI/CD pipeline.</small></p>
+
+  deploy-monitoring:
+    needs: request-deployment-approval
+    runs-on: Self-Hosted
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: http://monitoring.production
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -113,6 +152,9 @@ jobs:
     needs: deploy-monitoring
     runs-on: Self-Hosted
     if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: http://app.production
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -249,10 +291,44 @@ jobs:
             <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Failure Logs</a></p>
             <p><a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">View Commit</a></p>
 
-  rollback:
+  request-rollback-approval:
     needs: deploy-application
-    runs-on: Self-Hosted 
+    runs-on: Self-Hosted
     if: failure() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Send rollback approval request email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          secure: true
+          username: ${{ secrets.EMAIL }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "⚠️ Rollback Approval Required - ${{ github.repository }}"
+          to: ${{ secrets.EMAIL }}
+          from: DevOps CI/CD <${{ secrets.EMAIL }}>
+          html_body: |
+            <h2>⚠️ Rollback Approval Required</h2>
+            <p><strong>Repository:</strong> ${{ github.repository }}</p>
+            <p><strong>Branch:</strong> ${{ github.ref }}</p>
+            <p><strong>Failed Commit:</strong> ${{ github.sha }}</p>
+            <p><strong>Author:</strong> ${{ github.actor }}</p>
+            <hr>
+            <h3>❌ Deployment Failed</h3>
+            <p>The deployment validation failed. The system is ready to rollback to the previous stable version.</p>
+            <h3>🎯 Action Required:</h3>
+            <p><strong>Please review and approve the rollback:</strong></p>
+            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Review & Approve Rollback</a></p>
+            <hr>
+            <p><small>This is an automated rollback approval request from the CI/CD pipeline.</small></p>
+
+  rollback:
+    needs: request-rollback-approval
+    runs-on: Self-Hosted
+    if: failure() && github.ref == 'refs/heads/main'
+    environment:
+      name: production-rollback
+      url: http://app.production
     steps:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
