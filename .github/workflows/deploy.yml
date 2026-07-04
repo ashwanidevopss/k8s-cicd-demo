@@ -90,7 +90,6 @@ jobs:
         with:
           server_address: ${{ needs.load-config.outputs.smtp_server }}
           server_port: ${{ needs.load-config.outputs.smtp_port }}
-          secure: true
           username: ${{ secrets.EMAIL }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "🔔 Deployment Approval Required - ${{ github.repository }}"
@@ -255,7 +254,6 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: true
           username: ${{ secrets.EMAIL }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "✅ Capstone Deployment Successful - ${{ github.repository }}"
@@ -298,7 +296,6 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: true
           username: ${{ secrets.EMAIL }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "❌ Capstone Deployment Failed - ${{ github.repository }}"
@@ -327,7 +324,6 @@ jobs:
         with:
           server_address: ${{ needs.load-config.outputs.smtp_server }}
           server_port: ${{ needs.load-config.outputs.smtp_port }}
-          secure: true
           username: ${{ secrets.EMAIL }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "⚠️ Rollback Approval Required - ${{ github.repository }}"
@@ -377,7 +373,6 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: true
           username: ${{ secrets.EMAIL }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "🔄 Automatic Rollback Executed - ${{ github.repository }}"
