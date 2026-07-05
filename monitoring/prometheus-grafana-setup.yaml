@@ -78,7 +78,7 @@ data:
             target_label: kubernetes_pod_name
       
       # Application in production namespace
-      - job_name: 'hello-k8s-app'
+      - job_name: 'k8s-cicd-demo'
         kubernetes_sd_configs:
           - role: pod
             namespaces:
